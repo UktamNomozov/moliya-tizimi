@@ -2746,7 +2746,7 @@ function renderHisobotYillik(yil, dturFilter, xturFilter) {
           return `<td style="${colStyle}padding:4px 6px;vertical-align:top;">${txs.map(t=>`<div style="font-size:10px;color:${lc};border-bottom:1px solid #1a3a2a;padding:2px 0;">${t.sana.substr(8)} • ${t.summa.toLocaleString('uz')}${t.izoh?` <span style="color:#F59E0B;font-style:italic;">(${t.izoh})</span>`:''}</div>`).join('')}</td>`;
         }).join('');
         html += `<tr onclick="hisoToggleDetail('${detailId}')" style="cursor:pointer;" title="Bosing — tafsilot ko'rish">
-          <td style="${labelStyle}background:rgba(16,185,129,0.07);color:${lc};border-left:3px solid ${lc};">
+          <td style="${labelStyle}background:#1D3340;color:${lc};border-left:3px solid ${lc};">
             <span id="${detailId}-arrow" style="font-size:10px;margin-right:4px;">▶</span>${cat}
           </td>
           ${months.map(mo => {
@@ -2762,7 +2762,7 @@ function renderHisobotYillik(yil, dturFilter, xturFilter) {
         </tr>`;
       });
       html += `<tr>
-        <td style="${labelStyle}background:rgba(16,185,129,0.18);color:#10B981;font-weight:900;font-size:13px;border-left:4px solid #10B981;">JAMI DAROMAD</td>
+        <td style="${labelStyle}background:#1B4348;color:#10B981;font-weight:900;font-size:13px;border-left:4px solid #10B981;">JAMI DAROMAD</td>
         ${totalD.map(v=>`<td style="${colStyle}background:rgba(16,185,129,0.08);color:#10B981;font-weight:700;">${v?v.toLocaleString('uz'):'0'}</td>`).join('')}
         <td style="${colStyle}background:rgba(16,185,129,0.18);color:#10B981;font-weight:900;font-size:13px;">${grandD.toLocaleString('uz')}</td>
       </tr>`;
@@ -2783,7 +2783,7 @@ function renderHisobotYillik(yil, dturFilter, xturFilter) {
           return `<td style="${colStyle}padding:4px 6px;vertical-align:top;">${txs.map(t=>`<div style="font-size:10px;color:${lc};border-bottom:1px solid #3a1a1a;padding:2px 0;">${t.sana.substr(8)} • ${t.summa.toLocaleString('uz')}${t.izoh?` <span style="color:#F59E0B;font-style:italic;">(${t.izoh})</span>`:''}</div>`).join('')}</td>`;
         }).join('');
         html += `<tr onclick="hisoToggleDetail('${detailId}')" style="cursor:pointer;" title="Bosing — tafsilot ko'rish">
-          <td style="${labelStyle}background:rgba(239,68,68,0.07);color:${lc};border-left:3px solid ${lc};">
+          <td style="${labelStyle}background:#2D2B3C;color:${lc};border-left:3px solid ${lc};">
             <span id="${detailId}-arrow" style="font-size:10px;margin-right:4px;">▶</span>${cat}
           </td>
           ${months.map(mo => {
@@ -2799,7 +2799,7 @@ function renderHisobotYillik(yil, dturFilter, xturFilter) {
         </tr>`;
       });
       html += `<tr>
-        <td style="${labelStyle}background:rgba(239,68,68,0.18);color:#EF4444;font-weight:900;font-size:13px;border-left:4px solid #EF4444;">JAMI XARAJAT</td>
+        <td style="${labelStyle}background:#442E3D;color:#EF4444;font-weight:900;font-size:13px;border-left:4px solid #EF4444;">JAMI XARAJAT</td>
         ${totalX.map(v=>`<td style="${colStyle}background:rgba(239,68,68,0.08);color:#EF4444;font-weight:700;">${v?v.toLocaleString('uz'):'0'}</td>`).join('')}
         <td style="${colStyle}background:rgba(239,68,68,0.18);color:#EF4444;font-weight:900;font-size:13px;">${grandX.toLocaleString('uz')}</td>
       </tr>`;
@@ -2821,7 +2821,7 @@ function renderHisobotYillik(yil, dturFilter, xturFilter) {
         const rowTotal = Object.values(data).reduce((a,b)=>a+b,0);
         const lc = iColors[idx % iColors.length];
         html += `<tr>
-          <td style="${labelStyle}background:rgba(245,158,11,0.07);color:${lc};border-left:3px solid ${lc};">${cat}</td>
+          <td style="${labelStyle}background:#2D3138;color:${lc};border-left:3px solid ${lc};">${cat}</td>
           ${months.map(mo => {
             const v = data[mo]||0;
             return `<td style="${colStyle}${v?`color:${lc};font-weight:600;`:`color:#334155;`}">${v?v.toLocaleString('uz'):'0'}</td>`;
@@ -2836,7 +2836,7 @@ function renderHisobotYillik(yil, dturFilter, xturFilter) {
   if (hisoTab === 'all') {
     html += `<tr><td colspan="${months.length+2}" style="padding:3px;border:none;background:transparent;"></td></tr>`;
     html += `<tr>
-      <td style="${labelStyle}background:rgba(59,130,246,0.18);color:#3B82F6;font-weight:900;font-size:13px;border-left:4px solid #3B82F6;">💰 SOF DAROMAD</td>
+      <td style="${labelStyle}background:#23395D;color:#3B82F6;font-weight:900;font-size:13px;border-left:4px solid #3B82F6;">💰 SOF DAROMAD</td>
       ${totalNet.map(v=>`<td style="${colStyle}background:rgba(59,130,246,0.08);color:${v>=0?'#10B981':'#EF4444'};font-weight:700;">${v?v.toLocaleString('uz'):'0'}</td>`).join('')}
       <td style="${colStyle}background:rgba(59,130,246,0.18);color:${grandD-grandX>=0?'#10B981':'#EF4444'};font-weight:900;font-size:13px;">${(grandD-grandX).toLocaleString('uz')}</td>
     </tr>`;
@@ -2931,7 +2931,7 @@ function renderHisobotOylik(yil, oy, dturFilter, xturFilter) {
           return `<td style="${colStyle}padding:3px 5px;vertical-align:top;">${txs.map(t=>`<div style="font-size:10px;color:${lc};padding:1px 0;">${t.summa.toLocaleString('uz')}${t.izoh?`<br><span style="color:#F59E0B;font-style:italic;">${t.izoh}</span>`:''}</div>`).join('')}</td>`;
         }).join('');
         html += `<tr onclick="hisoToggleDetail('${detailId}')" style="cursor:pointer;">
-          <td style="${labelStyle}background:rgba(16,185,129,0.07);color:${lc};border-left:3px solid ${lc};">
+          <td style="${labelStyle}background:#1D3340;color:${lc};border-left:3px solid ${lc};">
             <span id="${detailId}-arrow" style="font-size:10px;margin-right:4px;">▶</span>${cat}
           </td>
           ${days.map(d=>{const v=data[d]||0;return`<td style="${colStyle}${v?`color:${lc};font-weight:600;`:`color:#334155;`}">${v?v.toLocaleString('uz'):'0'}</td>`}).join('')}
@@ -2943,7 +2943,7 @@ function renderHisobotOylik(yil, oy, dturFilter, xturFilter) {
           <td style="${colStyle}"></td>
         </tr>`;
       });
-      html += `<tr><td style="${labelStyle}background:rgba(16,185,129,0.18);color:#10B981;font-weight:900;border-left:4px solid #10B981;">JAMI DAROMAD</td>
+      html += `<tr><td style="${labelStyle}background:#1B4348;color:#10B981;font-weight:900;border-left:4px solid #10B981;">JAMI DAROMAD</td>
         ${totalD.map(v=>`<td style="${colStyle}background:rgba(16,185,129,0.08);color:#10B981;font-weight:700;">${v?v.toLocaleString('uz'):'0'}</td>`).join('')}
         <td style="${colStyle}background:rgba(16,185,129,0.18);color:#10B981;font-weight:900;">${grandD.toLocaleString('uz')}</td></tr>`;
     }
@@ -2962,7 +2962,7 @@ function renderHisobotOylik(yil, oy, dturFilter, xturFilter) {
           return `<td style="${colStyle}padding:3px 5px;vertical-align:top;">${txs.map(t=>`<div style="font-size:10px;color:${lc};padding:1px 0;">${t.summa.toLocaleString('uz')}${t.izoh?`<br><span style="color:#F59E0B;font-style:italic;">${t.izoh}</span>`:''}</div>`).join('')}</td>`;
         }).join('');
         html += `<tr onclick="hisoToggleDetail('${detailId}')" style="cursor:pointer;">
-          <td style="${labelStyle}background:rgba(239,68,68,0.07);color:${lc};border-left:3px solid ${lc};">
+          <td style="${labelStyle}background:#2D2B3C;color:${lc};border-left:3px solid ${lc};">
             <span id="${detailId}-arrow" style="font-size:10px;margin-right:4px;">▶</span>${cat}
           </td>
           ${days.map(d=>{const v=data[d]||0;return`<td style="${colStyle}${v?`color:${lc};font-weight:600;`:`color:#334155;`}">${v?v.toLocaleString('uz'):'0'}</td>`}).join('')}
@@ -2974,7 +2974,7 @@ function renderHisobotOylik(yil, oy, dturFilter, xturFilter) {
           <td style="${colStyle}"></td>
         </tr>`;
       });
-      html += `<tr><td style="${labelStyle}background:rgba(239,68,68,0.18);color:#EF4444;font-weight:900;border-left:4px solid #EF4444;">JAMI XARAJAT</td>
+      html += `<tr><td style="${labelStyle}background:#442E3D;color:#EF4444;font-weight:900;border-left:4px solid #EF4444;">JAMI XARAJAT</td>
         ${totalX.map(v=>`<td style="${colStyle}background:rgba(239,68,68,0.08);color:#EF4444;font-weight:700;">${v?v.toLocaleString('uz'):'0'}</td>`).join('')}
         <td style="${colStyle}background:rgba(239,68,68,0.18);color:#EF4444;font-weight:900;">${grandX.toLocaleString('uz')}</td></tr>`;
     }
@@ -2982,7 +2982,7 @@ function renderHisobotOylik(yil, oy, dturFilter, xturFilter) {
 
   if (hisoTab === 'all') {
     const nets = days.map((_,i)=>totalD[i]-totalX[i]);
-    html += `<tr><td style="${labelStyle}background:rgba(59,130,246,0.18);color:#3B82F6;font-weight:900;border-left:4px solid #3B82F6;">💰 SOF DAROMAD</td>
+    html += `<tr><td style="${labelStyle}background:#23395D;color:#3B82F6;font-weight:900;border-left:4px solid #3B82F6;">💰 SOF DAROMAD</td>
       ${nets.map(v=>`<td style="${colStyle}background:rgba(59,130,246,0.08);color:${v>0?'#10B981':v<0?'#EF4444':'#334155'};font-weight:700;">${v?v.toLocaleString('uz'):'0'}</td>`).join('')}
       <td style="${colStyle}background:rgba(59,130,246,0.18);color:${grandD-grandX>=0?'#10B981':'#EF4444'};font-weight:900;">${(grandD-grandX).toLocaleString('uz')}</td></tr>`;
   }
