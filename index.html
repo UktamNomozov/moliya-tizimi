@@ -2715,7 +2715,7 @@ function renderHisobotYillik(yil, dturFilter, xturFilter) {
   // Build table — rasmga o'xshash ko'rinish: rangli qator nomlar
   const colStyle = 'padding:7px 10px;text-align:right;border:1px solid #2a3a50;font-size:11.5px;white-space:nowrap;font-variant-numeric:tabular-nums;min-width:80px;';
   const thStyle = 'padding:8px 10px;background:#162032;font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:0.5px;border:1px solid #2a3a50;white-space:nowrap;text-align:right;min-width:80px;font-weight:700;';
-  const labelStyle = 'padding:8px 14px;font-size:12px;font-weight:800;border:1px solid #2a3a50;white-space:nowrap;min-width:150px;text-align:left;letter-spacing:0.3px;';
+  const labelStyle = 'padding:8px 14px;font-size:12px;font-weight:800;border:1px solid #2a3a50;white-space:nowrap;min-width:150px;text-align:left;letter-spacing:0.3px;position:sticky;left:0;z-index:2;';
 
   // Row label colors matching the image style
   const dColors = ['#FFD700','#FF6B6B','#FF9F43','#A29BFE','#74B9FF','#00CEC9','#FD79A8','#55EFC4','#FDCB6E','#6C5CE7'];
@@ -2909,7 +2909,7 @@ function renderHisobotOylik(yil, oy, dturFilter, xturFilter) {
 
   const colStyle = 'padding:6px 7px;text-align:right;border:1px solid #2a3a50;font-size:10.5px;white-space:nowrap;font-variant-numeric:tabular-nums;min-width:46px;';
   const thStyle = 'padding:6px 7px;background:#162032;font-size:9.5px;color:#64748B;text-transform:uppercase;border:1px solid #2a3a50;white-space:nowrap;text-align:right;font-weight:700;min-width:46px;';
-  const labelStyle = 'padding:7px 12px;font-size:11.5px;font-weight:800;border:1px solid #2a3a50;white-space:nowrap;min-width:140px;text-align:left;letter-spacing:0.2px;';
+  const labelStyle = 'padding:7px 12px;font-size:11.5px;font-weight:800;border:1px solid #2a3a50;white-space:nowrap;min-width:140px;text-align:left;letter-spacing:0.2px;position:sticky;left:0;z-index:2;';
 
   let html = `<table style="border-collapse:collapse;width:100%;min-width:800px;">
     <thead><tr>
