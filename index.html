@@ -3351,21 +3351,24 @@ function saveQarz(tur) {
   const qarzId = uid();
   state.qarzlar.push({ id: qarzId, qarzTuri: tur, sana, kishi, summa, manba, muddat, holat, izoh });
 
-  // Daromad/Xarajatga avtomatik yozish
+  // Manba tanlangan bo'lsa, pul haqiqatda hamyondan chiqadi/kiradi —
+  // shuning uchun balans HAR DOIM yangilanadi (quyidagi belgilash katagidan qat'i nazar).
+  if (manba) {
+    const w = state.wallets.find(w => w.id === manba);
+    if (w) w.balans = (w.balans||0) + (isOlgan ? summa : -summa);
+  }
+
+  // Belgilash katagi faqat Daromad/Xarajat ro'yxatiga ham yozilishini boshqaradi
   const linkD = document.getElementById('qo-daromad-link');
   const linkX = document.getElementById('qb-xarajat-link');
 
   if (isOlgan && linkD && linkD.checked && manba) {
     const dId = uid();
     state.daromadlar.push({ id: dId, sana, tur: 'Qarz (olgan)', summa, manba, izoh: `Kimdan: ${kishi}. ${izoh}`, qarzRef: qarzId });
-    const w = state.wallets.find(w => w.id === manba);
-    if (w) w.balans = (w.balans||0) + summa;
   }
   if (!isOlgan && linkX && linkX.checked && manba) {
     const xId = uid();
     state.xarajatlar.push({ id: xId, sana, kimga: kishi, yonalish: 'Qarz (bergan)', summa, manba, izoh, qarzRef: qarzId });
-    const w = state.wallets.find(w => w.id === manba);
-    if (w) w.balans = (w.balans||0) - summa;
   }
 
   saveState();
@@ -3398,8 +3401,26 @@ function qaytarQarz(id) {
 
 function deleteQarz(id) {
   if (!confirm('O\'chirishni tasdiqlaysizmi?')) return;
+  const q = state.qarzlar.find(q => q.id === id);
+  if (q) {
+    // Agar shu qarzga bog'langan daromad/xarajat yozuvi mavjud bo'lsa, u yozuv o'z o'rnida
+    // qoladi va pul harakatini o'zi ifodalaydi — bunday holda balansni qayta hisoblamaymiz.
+    const hasLinked = (state.daromadlar||[]).some(d => d.qarzRef === id)
+                   || (state.xarajatlar||[]).some(x => x.qarzRef === id);
+    if (q.manba && !hasLinked) {
+      const w = state.wallets.find(w => w.id === q.manba);
+      if (w) w.balans = (w.balans||0) + (q.qarzTuri === 'olgan' ? -q.summa : q.summa);
+    }
+    // To'lovlar (qaytarishlar) ta'sirini ham bekor qilamiz
+    (q.tolovlar||[]).forEach(t => {
+      if (!t.manba) return;
+      const w = state.wallets.find(w => w.id === t.manba);
+      if (!w) return;
+      w.balans = (w.balans||0) + (q.qarzTuri === 'olgan' ? t.summa : -t.summa);
+    });
+  }
   state.qarzlar = state.qarzlar.filter(q => q.id !== id);
-  saveState(); renderQarzlar(); showToast('🗑️ O\'chirildi', 'red');
+  saveState(); renderQarzlar(); renderBalans(); renderDashboard(); showToast('🗑️ O\'chirildi', 'red');
 }
 
 function renderQarzlar() {
