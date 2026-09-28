@@ -4010,13 +4010,11 @@ function openCloseDepositModal(id) {
   const j = state.jamgarmalar.find(x => x.id === id);
   if (!j) return;
   dcId = id;
-  const ci = calcDepositInterest(j);
-  const earnedTotal = Math.round(j.asosiy + ci.earnedInterest);
   document.getElementById('dc-info').innerHTML =
-    `<b>${j.nomi}</b> (${j.bank})<br>Asosiy: ${fmtAuto(j.asosiy, j.valyuta)}<br>Hisoblangan foiz: ${fmtAuto(ci.earnedInterest.toFixed(0), j.valyuta)}<br>Jami: <b>${fmtAuto(earnedTotal, j.valyuta)}</b>`;
-  document.getElementById('dc-summa').value = earnedTotal;
+    `<b>${j.nomi}</b> (${j.bank})<br>Asosiy summa: <b>${fmtAuto(j.asosiy, j.valyuta)}</b><br><span style="color:var(--text3);">Foiz qo'lda kiritilgan deb hisoblanadi — bu yerda qo'shilmaydi.</span>`;
+  document.getElementById('dc-summa').value = j.asosiy;
   document.getElementById('dc-sana').value = today();
-  document.getElementById('dc-izoh').value = `${j.nomi} depoziti yopildi`;
+  document.getElementById('dc-izoh').value = '';
   const opts = '<option value="">— tanlang —</option>' + state.wallets.map(w => `<option value="${w.id}">${w.nomi}</option>`).join('');
   document.getElementById('dc-manba').innerHTML = opts;
   document.getElementById('deposit-close-modal').style.display = 'flex';
@@ -4029,15 +4027,18 @@ function closeDepositConfirm() {
   const sana = document.getElementById('dc-sana').value;
   const izoh = document.getElementById('dc-izoh').value;
   if (!summa || !manba || !sana) { alert("Summa, karta va sanani to'g'ri kiriting!"); return; }
-  state.daromadlar.push({ id: uid(), sana, tur: 'Depozit yopildi', summa, manba, izoh });
+  // Asosiy summa daromad emas — faqat tanlangan karta balansini oshiradi.
   const w = state.wallets.find(w => w.id === manba);
   if (w) w.balans = (w.balans||0) + summa;
   j.yopilgan = true;
   j.yopilganSana = sana;
+  j.yopilganSumma = summa;
+  j.yopilganManba = manba;
+  if (izoh) j.yopilganIzoh = izoh;
   saveState();
   document.getElementById('deposit-close-modal').style.display = 'none';
   renderJamgarma(); renderBalans(); renderDashboard();
-  showToast('✅ Depozit yopildi va summasi kartaga o\'tqizildi!', 'green');
+  showToast('✅ Depozit yopildi, summa kartaga qo\'shildi!', 'green');
 }
 
 function saveQarzQaytarish() {
