@@ -1517,10 +1517,24 @@ function defaultState() {
   };
 }
 
+// ==================== XSS HIMOYASI ====================
+// Foydalanuvchi matnlari sahifaga innerHTML orqali chiqariladi. HTML belgilarini
+// (< > ") o'xshash, lekin xavfsiz belgilarga almashtirib, kod kiritilishining oldini olamiz.
+// Bu import qilingan fayllarni va bulutdan kelgan ma'lumotni ham qamraydi.
+function cleanText(v) {
+  return v.replace(/</g, '‹').replace(/>/g, '›').replace(/"/g, '”');
+}
+function sanitizeData(v) {
+  if (typeof v === 'string') return cleanText(v);
+  if (Array.isArray(v)) { for (let i = 0; i < v.length; i++) v[i] = sanitizeData(v[i]); return v; }
+  if (v && typeof v === 'object') { for (const k in v) v[k] = sanitizeData(v[k]); return v; }
+  return v;
+}
+
 async function loadState() {
   try {
     const res = await window.storage.get(STORAGE_KEY, false);
-    state = res && res.value ? JSON.parse(res.value) : defaultState();
+    state = res && res.value ? sanitizeData(JSON.parse(res.value)) : defaultState();
     stateLoadFailed = false;
   } catch(e) {
     if (e && e.message === 'not found') {
@@ -1540,6 +1554,7 @@ async function loadState() {
 }
 
 async function saveState() {
+  sanitizeData(state);
   if (stateLoadFailed) {
     showToast("⚠️ Ma'lumotlar yuklanmagan, saqlash to'xtatildi. Sahifani yangilang.", 'red');
     return;
@@ -3826,7 +3841,8 @@ function importData(event) {
       if (!parsed.daromadlar || !parsed.xarajatlar) { alert('Noto\'g\'ri fayl formati!'); return; }
       if (!confirm('Mavjud barcha ma\'lumotlar o\'chirilib, yangi ma\'lumotlar yuklanadi. Davom etasizmi?')) return;
       if (!parsed.qarzlar) parsed.qarzlar = [];
-      state = parsed;
+      state = sanitizeData(parsed);
+      stateLoadFailed = false;
       await saveState();
       location.reload();
     } catch(err) { alert('Faylni o\'qishda xato: ' + err.message); }
@@ -3849,7 +3865,8 @@ async function importFromText() {
     if (!parsed.daromadlar) { alert('Noto\'g\'ri format!'); return; }
     if (!confirm('Mavjud ma\'lumotlar o\'chirilib yangilari yuklanadi. Davom etasizmi?')) return;
     if (!parsed.qarzlar) parsed.qarzlar = [];
-    state = parsed;
+    state = sanitizeData(parsed);
+    stateLoadFailed = false;
     await saveState();
     location.reload();
   } catch(err) { alert('JSON xato: ' + err.message); }
