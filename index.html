@@ -1293,6 +1293,7 @@ function emailAuthError(e) {
   if (e.code === 'auth/invalid-email') return "Email formati noto'g'ri";
   if (e.code === 'auth/weak-password') return "Parol juda oddiy, kuchliroq parol kiriting";
   if (e.code === 'auth/invalid-credential') return "Email yoki parol noto'g'ri";
+  if (e.code === 'auth/too-many-requests') return "Juda ko'p noto'g'ri urinish. Hisob vaqtincha bloklandi — birozdan keyin qayta urining.";
   return e.message || 'Xatolik yuz berdi';
 }
 
@@ -1302,63 +1303,146 @@ let pinUnlockedThisSession = false;
 function pinKey(uid) { return 'moliya_pin_' + uid; }
 function pinSkipKey(uid) { return 'moliya_pin_skip_' + uid; }
 
-async function hashPin(pin) {
-  const enc = new TextEncoder().encode(pin);
-  const buf = await crypto.subtle.digest('SHA-256', enc);
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+// ---- PIN xeshi: tuzli PBKDF2 (eski SHA-256 xeshlar birinchi to'g'ri kirishda avtomatik yangilanadi) ----
+const PIN_ITER = 150000;
+const PIN_MAX_FAILS = 3;              // shuncha xato urinishdan keyin
+const PIN_LOCK_MS = 3 * 60 * 1000;    // 3 daqiqaga bloklanadi
+let pinCountdownTimer = null;
+
+function pinFailKey(uid) { return 'moliya_pin_fail_' + uid; }
+function toHex(buf) { return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join(''); }
+function fromHex(hex) { return new Uint8Array(hex.match(/.{2}/g).map(h => parseInt(h, 16))); }
+
+async function hashPinLegacy(pin) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pin));
+  return toHex(buf);
+}
+async function pbkdf2Pin(pin, saltBytes, iter) {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: saltBytes, iterations: iter, hash: 'SHA-256' }, key, 256);
+  return toHex(bits);
 }
 function getStoredPinHash(uid) {
   try { return localStorage.getItem(pinKey(uid)); } catch(e) { return null; }
 }
 async function setStoredPin(uid, pin) {
-  const hash = await hashPin(pin);
-  try { localStorage.setItem(pinKey(uid), hash); } catch(e) {}
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const hash = await pbkdf2Pin(pin, salt, PIN_ITER);
+  try { localStorage.setItem(pinKey(uid), JSON.stringify({ v: 2, salt: toHex(salt), iter: PIN_ITER, hash })); } catch(e) {}
+}
+// To'g'ri bo'lsa true; eski formatdagi PIN to'g'ri kiritilsa, yangi formatga o'tkaziladi
+async function checkPin(uid, pin) {
+  const stored = getStoredPinHash(uid);
+  if (!stored) return false;
+  if (stored.charAt(0) === '{') {
+    try {
+      const rec = JSON.parse(stored);
+      return (await pbkdf2Pin(pin, fromHex(rec.salt), rec.iter)) === rec.hash;
+    } catch(e) { return false; }
+  }
+  const ok = (await hashPinLegacy(pin)) === stored;
+  if (ok) await setStoredPin(uid, pin);
+  return ok;
 }
 function clearStoredPin(uid) {
-  try { localStorage.removeItem(pinKey(uid)); localStorage.removeItem(pinSkipKey(uid)); } catch(e) {}
+  try {
+    localStorage.removeItem(pinKey(uid));
+    localStorage.removeItem(pinSkipKey(uid));
+    localStorage.removeItem(pinFailKey(uid));
+  } catch(e) {}
+}
+
+// ---- Xato urinishlar hisobi (sahifani yangilash blokni bekor qilmaydi) ----
+function getPinFails(uid) {
+  try { return JSON.parse(localStorage.getItem(pinFailKey(uid))) || { count: 0, lockUntil: 0 }; }
+  catch(e) { return { count: 0, lockUntil: 0 }; }
+}
+function setPinFails(uid, rec) {
+  try { localStorage.setItem(pinFailKey(uid), JSON.stringify(rec)); } catch(e) {}
+}
+function pinLockRemainingMs(uid) {
+  return Math.max(0, (getPinFails(uid).lockUntil || 0) - Date.now());
 }
 
 function showPinLockScreen(errorMsg) {
+  if (pinCountdownTimer) { clearInterval(pinCountdownTimer); pinCountdownTimer = null; }
   const overlay = document.getElementById('auth-overlay');
   overlay.style.display = 'flex';
+  const email = currentUser && currentUser.email ? cleanText(currentUser.email) : 'Hisobingiz';
   overlay.innerHTML = `
     <div style="min-height:100vh;width:100%;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px;">
       <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:36px;width:100%;max-width:360px;text-align:center;">
         <div style="font-weight:800;font-size:20px;margin-bottom:6px;color:var(--text);">🔒 Qulflangan</div>
-        <div style="color:var(--text2);font-size:13px;margin-bottom:20px;">${currentUser && currentUser.email ? currentUser.email : 'Hisobingiz'}</div>
-        ${errorMsg ? `<div style="background:var(--red-bg);border:1px solid var(--red);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--red);margin-bottom:16px;">${errorMsg}</div>` : ''}
-        <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" id="pin-input" placeholder="PIN kod" style="text-align:center;font-size:22px;letter-spacing:10px;width:100%;padding:12px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;color:var(--text);margin-bottom:14px;outline:none;">
+        <div style="color:var(--text2);font-size:13px;margin-bottom:20px;">${email}</div>
+        <div id="pin-error" style="display:none;background:var(--red-bg);border:1px solid var(--red);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--red);margin-bottom:16px;"></div>
+        <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" id="pin-input" placeholder="PIN kod" autocomplete="off" style="text-align:center;font-size:22px;letter-spacing:10px;width:100%;padding:12px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;color:var(--text);margin-bottom:14px;outline:none;">
         <button id="btn-pin-unlock" class="btn btn-primary" style="width:100%;">Ochish</button>
         <button id="btn-pin-other-account" style="margin-top:16px;background:none;border:none;color:var(--text3);font-size:12px;cursor:pointer;text-decoration:underline;">Boshqa hisob bilan kirish</button>
       </div>
     </div>
   `;
   const inp = document.getElementById('pin-input');
-  inp.focus();
+  const btn = document.getElementById('btn-pin-unlock');
+  const errEl = document.getElementById('pin-error');
+  const showErr = msg => { errEl.textContent = msg; errEl.style.display = msg ? 'block' : 'none'; };
+  showErr(errorMsg || '');
   inp.addEventListener('keydown', e => { if (e.key === 'Enter') verifyPin(); });
-  document.getElementById('btn-pin-unlock').onclick = verifyPin;
+  btn.onclick = verifyPin;
   document.getElementById('btn-pin-other-account').onclick = () => {
     if (confirm("Hisobdan butunlay chiqasizmi? Keyingi safar to'liq login (email/parol) kerak bo'ladi.")) fullSignOut();
   };
+
+  // Blok faol bo'lsa: kiritishni o'chirib, qolgan vaqtni ko'rsatamiz
+  const tick = () => {
+    const ms = currentUser ? pinLockRemainingMs(currentUser.uid) : 0;
+    if (ms > 0) {
+      const s = Math.ceil(ms / 1000);
+      inp.disabled = true; btn.disabled = true; inp.value = '';
+      showErr(`⛔ ${PIN_MAX_FAILS} marta noto'g'ri PIN kiritildi. ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')} dan keyin qayta urining.`);
+      return true;
+    }
+    if (inp.disabled) { inp.disabled = false; btn.disabled = false; showErr(''); inp.focus(); }
+    return false;
+  };
+  if (tick()) {
+    pinCountdownTimer = setInterval(() => { if (!tick()) { clearInterval(pinCountdownTimer); pinCountdownTimer = null; } }, 1000);
+  } else {
+    inp.focus();
+  }
 }
 
 async function verifyPin() {
   const inp = document.getElementById('pin-input');
+  if (!inp || inp.disabled || !currentUser) return;
   const pin = (inp.value || '').trim();
   if (!pin) return;
-  const hash = await hashPin(pin);
-  const stored = getStoredPinHash(currentUser.uid);
-  if (hash === stored) {
+  const uid = currentUser.uid;
+  if (pinLockRemainingMs(uid) > 0) { showPinLockScreen(); return; }
+
+  if (await checkPin(uid, pin)) {
+    setPinFails(uid, { count: 0, lockUntil: 0 });
     pinUnlockedThisSession = true;
+    if (pinCountdownTimer) { clearInterval(pinCountdownTimer); pinCountdownTimer = null; }
     await proceedIntoApp();
+    return;
+  }
+
+  const rec = getPinFails(uid);
+  rec.count = (rec.count || 0) + 1;
+  if (rec.count >= PIN_MAX_FAILS) {
+    setPinFails(uid, { count: 0, lockUntil: Date.now() + PIN_LOCK_MS });
+    showPinLockScreen();
   } else {
-    showPinLockScreen("PIN noto'g'ri, qayta urining");
+    setPinFails(uid, rec);
+    const left = PIN_MAX_FAILS - rec.count;
+    showPinLockScreen(`PIN noto'g'ri. Yana ${left} ta urinish qoldi, keyin ${PIN_LOCK_MS / 60000} daqiqaga bloklanadi.`);
   }
 }
 
 function lockApp() {
   pinUnlockedThisSession = false;
-  showPinLockScreen();
+  // Sahifani qayta yuklaymiz: xotiradagi ma'lumotlar tozalanadi, PIN kiritilmaguncha qayta yuklanmaydi
+  location.reload();
 }
 
 function showPinSetupModal() {
