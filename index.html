@@ -1502,6 +1502,34 @@ async function proceedIntoApp() {
   renderAccountNav();
   await startApp();
   maybeOfferPinSetup();
+  startIdleLock();
+}
+
+// ==================== AVTOMATIK QULFLASH ====================
+// 15 daqiqa harakatsizlikdan keyin ilova qulflanadi (faqat PIN o'rnatilgan bo'lsa).
+// Boshqa tabda yoki telefon uxlab qolganda ham ishlaydi: qaytganda vaqt tekshiriladi.
+const IDLE_LOCK_MS = 15 * 60 * 1000;
+let lastActivityAt = Date.now();
+let idleLockStarted = false;
+
+function markActivity() { lastActivityAt = Date.now(); }
+
+function checkIdleLock() {
+  if (!currentUser || !state) return;                   // ilova hali ochilmagan
+  if (!getStoredPinHash(currentUser.uid)) return;      // PIN yo'q — qulflash mumkin emas
+  if (document.getElementById('pin-input')) return;     // allaqachon qulflangan
+  if (Date.now() - lastActivityAt >= IDLE_LOCK_MS) lockApp();
+}
+
+function startIdleLock() {
+  lastActivityAt = Date.now();
+  if (idleLockStarted) return;
+  idleLockStarted = true;
+  ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'wheel'].forEach(ev =>
+    document.addEventListener(ev, markActivity, { passive: true, capture: true }));
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkIdleLock(); });
+  window.addEventListener('focus', checkIdleLock);
+  setInterval(checkIdleLock, 30 * 1000);
 }
 
 async function fullSignOut() {
