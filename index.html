@@ -1082,19 +1082,28 @@
 
     <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:16px;margin-bottom:20px;font-size:13px;line-height:1.8;color:var(--text2);">
       <div style="font-weight:700;color:var(--text);margin-bottom:8px;">💡 Boshqa kompyuterga o'tkazish yo'riqnomasi:</div>
-      <div>1️⃣ <strong style="color:var(--text);">Export qiling</strong> — quyidagi tugma orqali JSON fayl saqlanadi</div>
+      <div>1️⃣ <strong style="color:var(--text);">Export qiling</strong> — parol kiriting va quyidagi tugma orqali shifrlangan fayl saqlanadi</div>
       <div>2️⃣ <strong style="color:var(--text);">Faylni ko'chiring</strong> — USB, email, Telegram, Google Drive orqali yangi kompyuterga yuboring</div>
-      <div>3️⃣ <strong style="color:var(--text);">Saytni oching</strong> — yangi kompyuterda moliya.html faylni brauzerda oching</div>
-      <div>4️⃣ <strong style="color:var(--text);">Import qiling</strong> — quyidagi "Import" tugmasini bosib, JSON faylni tanlang</div>
+      <div>3️⃣ <strong style="color:var(--text);">Saytni oching</strong> — yangi kompyuterda saytga kiring</div>
+      <div>4️⃣ <strong style="color:var(--text);">Import qiling</strong> — o'sha parolni kiriting va "Import" tugmasi orqali faylni tanlang</div>
       <div style="margin-top:8px;color:var(--gold);">⚠️ Import qilish mavjud ma'lumotlarni <strong>almashtiradi</strong>. Avval export qilishni tavsiya etamiz!</div>
+    </div>
+
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;">🔐 Fayl paroli</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <input type="password" id="data-pass" autocomplete="new-password" placeholder="Parol (kamida 6 belgi)" style="width:100%;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);outline:none;">
+        <input type="password" id="data-pass2" autocomplete="new-password" placeholder="Takrorlang (export uchun)" style="width:100%;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);outline:none;">
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5;">Export: fayl shu parol bilan shifrlanadi. Import: shifrlangan fayl uchun faqat birinchi maydon kerak.<br><span style="color:var(--gold);">⚠️ Parolni unutsangiz, faylni hech kim ocha olmaydi — uni xavfsiz joyda saqlang.</span></div>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
       <button class="btn btn-green" onclick="exportData()" style="padding:14px;">
-        📤 Export (JSON fayl)<br><span style="font-size:11px;font-weight:400;opacity:0.8;">Barcha ma'lumotlar saqlanadi</span>
+        📤 Export (fayl)<br><span style="font-size:11px;font-weight:400;opacity:0.8;">Parol bilan shifrlanadi</span>
       </button>
       <label class="btn btn-primary" style="padding:14px;text-align:center;cursor:pointer;">
-        📥 Import (JSON fayl)<br><span style="font-size:11px;font-weight:400;opacity:0.8;">Fayldan yuklash</span>
+        📥 Import (fayl)<br><span style="font-size:11px;font-weight:400;opacity:0.8;">Fayldan yuklash</span>
         <input type="file" accept=".json" onchange="importData(event)" style="display:none;">
       </label>
     </div>
@@ -1103,7 +1112,7 @@
       <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--text2);">📋 Matn orqali (nusxa-joylashtirish)</div>
       <textarea id="export-text" style="width:100%;height:120px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);padding:10px;font-size:11px;font-family:monospace;resize:vertical;outline:none;" placeholder="Bu yerda JSON ko'rinadi..."></textarea>
       <div style="display:flex;gap:8px;margin-top:8px;">
-        <button class="btn btn-ghost btn-sm" onclick="copyExportText()">📋 Nusxa olish</button>
+        <button class="btn btn-ghost btn-sm" onclick="copyExportText()">📋 Matn yaratish va nusxa olish</button>
         <button class="btn btn-ghost btn-sm" onclick="importFromText()">⬆️ Matndan yuklash</button>
       </div>
     </div>
@@ -3923,24 +3932,86 @@ renderBalans = function() {
 function openDataModal() {
   const modal = document.getElementById('data-modal');
   modal.style.display = 'flex';
-  document.getElementById('export-text').value = JSON.stringify(state, null, 2);
+  document.getElementById('export-text').value = '';
+  ['data-pass','data-pass2'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   // Update cloud status in modal
   const statusEl = document.getElementById('data-modal-cloud-status');
   if (statusEl) statusEl.textContent = supaReady ? '🟢 Bulutga ulangan' : '🔴 Lokal rejim';
 }
 function closeDataModal() { document.getElementById('data-modal').style.display = 'none'; }
 
-function exportData() {
-  const json = JSON.stringify(state, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
+// ==================== SHIFRLANGAN ZAXIRA ====================
+// Format: { format: 'moliya-shifrli', v: 1, kdf: PBKDF2-SHA256, iter, salt, iv, data } — AES-GCM 256
+const BACKUP_FORMAT = 'moliya-shifrli';
+const BACKUP_ITER = 250000;
+
+async function backupKey(pass, salt, iter) {
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: iter, hash: 'SHA-256' },
+    base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+function b64(bytes) { let s = ''; bytes.forEach(b => s += String.fromCharCode(b)); return btoa(s); }
+function unb64(str) { return Uint8Array.from(atob(str), c => c.charCodeAt(0)); }
+
+async function encryptBackup(obj, pass) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await backupKey(pass, salt, BACKUP_ITER);
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(obj)));
+  return JSON.stringify({ format: BACKUP_FORMAT, v: 1, kdf: 'PBKDF2-SHA256', iter: BACKUP_ITER,
+    salt: b64(salt), iv: b64(iv), data: b64(new Uint8Array(ct)) });
+}
+async function decryptBackup(env, pass) {
+  const key = await backupKey(pass, unb64(env.salt), env.iter || BACKUP_ITER);
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(env.iv) }, key, unb64(env.data));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+
+// Export uchun parol: shifrlash uchun parol, shifrsiz uchun null, bekor qilinsa undefined
+function getExportPass() {
+  const p1 = (document.getElementById('data-pass') || {}).value || '';
+  const p2 = (document.getElementById('data-pass2') || {}).value || '';
+  if (!p1 && !p2) {
+    if (confirm("Parol kiritilmadi. Fayl SHIFRLANMAGAN holda saqlansinmi?\n\nUni ochgan har kim barcha moliyaviy ma'lumotlaringizni ko'radi.")) return null;
+    return undefined;
+  }
+  if (p1.length < 6) { alert("Parol kamida 6 belgidan iborat bo'lishi kerak."); return undefined; }
+  if (p1 !== p2) { alert('Parollar mos kelmadi.'); return undefined; }
+  return p1;
+}
+async function buildExportText() {
+  const pass = getExportPass();
+  if (pass === undefined) return null;
+  if (pass === null) return { text: JSON.stringify(state, null, 2), encrypted: false };
+  return { text: await encryptBackup(state, pass), encrypted: true };
+}
+
+// Fayl yoki matndan zaxirani o'qish (shifrlangan va eski shifrsiz formatlar)
+async function parseBackupText(text) {
+  let parsed;
+  try { parsed = JSON.parse(text); } catch(e) { throw new Error("Fayl formati noto'g'ri (JSON emas)"); }
+  if (parsed && parsed.format === BACKUP_FORMAT) {
+    const pass = (document.getElementById('data-pass') || {}).value || '';
+    if (!pass) throw new Error("Bu fayl shifrlangan. Avval 🔐 Fayl paroli maydoniga parolni kiriting.");
+    try { parsed = await decryptBackup(parsed, pass); }
+    catch(e) { throw new Error("Parol noto'g'ri yoki fayl buzilgan."); }
+  }
+  return parsed;
+}
+
+async function exportData() {
+  const out = await buildExportText();
+  if (!out) return;
+  const blob = new Blob([out.text], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   const d = new Date();
-  a.download = `moliya_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.json`;
+  const ymd = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+  a.download = out.encrypted ? `moliya_${ymd}_shifrli.json` : `moliya_${ymd}.json`;
   a.click();
   URL.revokeObjectURL(url);
-  showToast("📤 Fayl yuklab olindi!", 'green');
+  showToast(out.encrypted ? "🔐 Shifrlangan fayl yuklab olindi!" : "📤 Fayl yuklab olindi (shifrsiz)!", 'green');
 }
 
 function importData(event) {
@@ -3949,8 +4020,8 @@ function importData(event) {
   const reader = new FileReader();
   reader.onload = async (e) => {
     try {
-      const parsed = JSON.parse(e.target.result);
-      if (!parsed.daromadlar || !parsed.xarajatlar) { alert('Noto\'g\'ri fayl formati!'); return; }
+      const parsed = await parseBackupText(e.target.result);
+      if (!parsed || !parsed.daromadlar || !parsed.xarajatlar) { alert('Noto\'g\'ri fayl formati!'); return; }
       if (!confirm('Mavjud barcha ma\'lumotlar o\'chirilib, yangi ma\'lumotlar yuklanadi. Davom etasizmi?')) return;
       if (!parsed.qarzlar) parsed.qarzlar = [];
       state = sanitizeData(parsed);
@@ -3958,30 +4029,34 @@ function importData(event) {
       await saveState();
       location.reload();
     } catch(err) { alert('Faylni o\'qishda xato: ' + err.message); }
+    event.target.value = '';
   };
   reader.readAsText(file);
 }
 
-function copyExportText() {
+async function copyExportText() {
+  const out = await buildExportText();
+  if (!out) return;
   const ta = document.getElementById('export-text');
+  ta.value = out.text;
   ta.select();
-  document.execCommand('copy');
-  showToast('📋 Nusxa olindi!', 'blue');
+  try { await navigator.clipboard.writeText(out.text); } catch(e) { document.execCommand('copy'); }
+  showToast(out.encrypted ? '🔐 Shifrlangan matn nusxalandi!' : '📋 Nusxa olindi (shifrsiz)!', 'blue');
 }
 
 async function importFromText() {
   const text = document.getElementById('export-text').value.trim();
   if (!text) { alert('Avval JSON matnni kiriting!'); return; }
   try {
-    const parsed = JSON.parse(text);
-    if (!parsed.daromadlar) { alert('Noto\'g\'ri format!'); return; }
+    const parsed = await parseBackupText(text);
+    if (!parsed || !parsed.daromadlar) { alert('Noto\'g\'ri format!'); return; }
     if (!confirm('Mavjud ma\'lumotlar o\'chirilib yangilari yuklanadi. Davom etasizmi?')) return;
     if (!parsed.qarzlar) parsed.qarzlar = [];
     state = sanitizeData(parsed);
     stateLoadFailed = false;
     await saveState();
     location.reload();
-  } catch(err) { alert('JSON xato: ' + err.message); }
+  } catch(err) { alert('Xato: ' + err.message); }
 }
 
 // Close modals on backdrop click
